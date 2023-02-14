@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+    <head>  
+        <link rel="stylesheet"  type="text/css" href="{% static 'website/css/stylesheet.css' %}">
+    </head>
+    <script src="{% static 'website/js/randomgen.js' %}"></script>
+    <script type="text/javascript">
+        var check = "{{ setup|safe }}";
+        var masterkey;
+        var sig;
+        if (check.includes("False")){
+            sig = {};
+            masterkey = keyGen();
+            //console.log(masterkey);
+            sessionStorage.setItem("masterkey", masterkey);
+        }
+        else {
+            //console.log("CHECK IS TRUE");
+            masterkey = "{{ masterkey|safe }}";
+            var tempsig = "{{ sigmap|safe }}";
+            var temp2 = tempsig.replaceAll("'", '"');
+            sig = JSON.parse(temp2);
+            //console.log(typeof(sig));
+            console.log(sig);
+            sessionStorage.setItem("masterkey", masterkey);
+        }
+        sessionStorage.setItem("sig", JSON.stringify(sig));
+        var debug = sessionStorage.getItem("debug");
+        //console.log(debug);
+        //console.log(sessionStorage.getItem("tmapdata"));
+            
+        function dismiss(){
+        document.getElementById("alert").hidden = true;
+        }
+    </script>
+    <script src="{% static 'website/js/dismissalert.js' %}"></script>
+    <body class = "center">
+        <header class = "title" id="test"> Image Search Engine </header>
+        <p></p>
+        {% for msg in messages %}
+        <div class="alert" id="alert">
+            <div class = "small">
+            {{ msg }}
+            <button type="button" class="btn-close" onclick=dismiss()> x </button>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <p>Select the Image Search section to search for an image, the Add Image section to upload your own image or the Delete Image section to delete images</p>
+
+         <div class="navigation"> 
+            <a href="{% url 'add-image' %}"> Add Image </a>
+            <br>
+            <a href="{% url 'image-search' %}"> Image Search </a>
+            <br>
+            <a href="{% url 'delete-image' %}"> Delete Image </a>
+            <br>
+        </div>
+    </body>
+</html>

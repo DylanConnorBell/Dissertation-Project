@@ -1,0 +1,209 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet"  type="text/css" href="{% static 'website/css/stylesheet.css' %}">
+    </head>
+    <script src="{% static 'website/js/textconversion.js' %}"></script>
+    <script src="{% static 'website/js/randomgen.js' %}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        var sig = JSON.parse(sessionStorage.getItem("sig"));
+        console.log(sig)
+        var masterkey = CryptoJS.enc.Utf8.parse(sessionStorage.getItem("masterkey"));
+    </script>
+    <body class="center">
+        <header class = "title"> Image Upload </header>
+        <p></p>
+        <div class="navigation">
+            <a href="{% url 'home' %}"> Home Page </a>
+            <br>
+            <a href="{% url 'image-search' %}"> Image Search </a>
+            <br>
+            <a href="{% url 'delete-image' %}"> Delete Image </a>
+            <br> 
+        </div>
+        <p> You can choose to upload a single image or multiple images </p>
+        <br>
+        <form class = "form" name="SingleImageForm" id="SingleImageForm" enctype="multipart/form-data" method="POST" action="">
+            <p class = "header"> Single Image Upload</p>
+            {% csrf_token %}
+            <label> Keyword: </label>
+            <input type="text" required name="SingleUploadKeyword" id="SingleUploadKeyword">
+            <br>
+            <label> Image: </label>
+            <input type="file" required name="SingleUploadImage" id ="SingleUploadImage" accept="image/*">
+            <br>
+            <input type="hidden" required id="SingleSig" name="SingleSig" value>
+            <input type="hidden" required id="SingleInd" name="SingleInd" value>
+            <input type="hidden" required id="SingleU" name="SingleU" value>
+            <input type="hidden" required id="SingleE" name="SingleE" value>
+            <input type="hidden" required id="SingleKey" name="SingleKey" value>
+            <input type="submit" value="Upload" name="SingleSubmit" id="SingleSubmit"/>
+            <br>
+        </form>
+        <br>
+        <form class = "form" enctype="multipart/form-data" method="POST" action="">
+            <p class = "header"> Multiple Image Upload </p>
+            <p class = "small"> To upload multiple images using this form hold control and click each image, or to select all images in a folder press the shift key.</p>
+            <p class = "small"> Please understand all images uploaded together will have the same keyword assigned. </p>
+            {% csrf_token %}
+            <label> Keyword: </label>
+            <input type="text" required name="MultipleUploadKeyword" id="MultipleUploadKeyword">
+            <br>
+            <label> Images: </label>
+            <input type="file" required name="MultipleUploadImage" id="MultipleUploadImage" multiple accept="image/*">
+            <br>
+            <input type="hidden" required id="MultipleSig" name="MultipleSig" value>
+            <input type="hidden" required id="MultipleInd" name="MultipleInd" value>
+            <input type="hidden" required id="MultipleU" name="MultipleU" value>
+            <input type="hidden" required id="MultipleE" name="MultipleE" value>
+            <input type="hidden" required id="MultipleKey" name="MultipleKey" value>
+            <input type="submit" value="Upload" name="MultipleSubmit" id="MultipleSubmit"/>
+        </form>
+    </body>
+        <script type="text/javascript">
+
+            var singleForm = document.getElementById('SingleSubmit');
+            singleForm.addEventListener('click',function(event){
+                addIndexUpdate(document.getElementById('SingleUploadKeyword').value, "single");
+            }, true)
+            var multipleForm = document.getElementById('MultipleSubmit');
+            multipleForm.addEventListener('click',function(event){ 
+                multipleUpload(document.getElementById('MultipleUploadKeyword').value);}, true)
+            console.log(masterkey); 
+
+            function multipleUpload(string){
+                var keyword = string;
+                var indexes = {};
+                var us = {};
+                var es = {};
+                var uploadField = document.getElementById("MultipleUploadImage");
+                var count = uploadField.files.length;
+                //console.log(count);
+                for( var i = 0; i < count; i++){
+                    updates = addIndexUpdate(keyword, "multiple");
+                    //console.log(updates);
+                    items = updates.split(",");
+                    //console.log(items);
+                    var tempus = {};
+                    tempus[i.toString()] = items[0];
+                    Object.assign(us, tempus);
+                    var tempes = {};
+                    tempes[i.toString()] = items[1];
+                    Object.assign(es, tempes);
+                    var tempinds = {};
+                    tempinds[i.toString()] = items[2];
+                    Object.assign(indexes, tempinds);
+                }
+                document.getElementById("MultipleSig").value = JSON.stringify(sig);
+                document.getElementById("MultipleInd").value = JSON.stringify(indexes);
+                document.getElementById("MultipleU").value = JSON.stringify(us);
+                document.getElementById("MultipleE").value = JSON.stringify(es);
+                document.getElementById("MultipleKey").value = sessionStorage.getItem("masterkey");
+                //sessionStorage.setItem("tmapdata", document.getElementById("MultipleSig").value+","+document.getElementById("MultipleU").value+","+document.getElementById("MultipleE").value);
+                //console.log(sessionStorage.getItem("tmapdata"));
+                sessionStorage.setItem("sig", JSON.stringify(sig));
+            }
+
+            function addIndexUpdate(string, pointer){
+                var encoded = CryptoJS.enc.Utf8.parse(string)
+                var hash = CryptoJS.SHA256(encoded).toString(CryptoJS.enc.Hex);
+                //console.log(hash);
+                var tag = CryptoJS.AES.encrypt(hash, masterkey, {mode: CryptoJS.mode.ECB});
+                //console.log(tag.toString());
+                var op = "add";
+                if(pointer == "single"){
+                    keyword = string;
+                    //console.log("SIGTYPE: "+typeof(sig));
+                    var ind = indGen();
+                    var state;
+                    var counter;
+                    var newKey = keyGen();
+                    if(sig[keyword]){
+                        string = sig[keyword];
+                        var temp = string.split(',');
+                        state = temp[0];
+                        counter = parseInt(temp[1]);
+                        sessionStorage.setItem("debug", "keyword: "+keyword+" is in sig, state: "+state+" counter: "+counter);
+                        var encodedKey = CryptoJS.enc.Utf8.parse(newKey);
+                        var encodedState = CryptoJS.enc.Base64.parse(state)
+                        state = CryptoJS.AES.encrypt(encodedState, encodedKey, {mode: CryptoJS.mode.ECB}).toString();
+                        sig[keyword] = state+","+(counter+=1);
+                    }
+                    else{
+                        state = stateGen();
+                        counter = 0;
+                        var encodedKey = CryptoJS.enc.Utf8.parse(newKey);
+                        var encodedState = CryptoJS.enc.Base64.parse(state)
+                        state = CryptoJS.AES.encrypt(encodedState, encodedKey, {mode: CryptoJS.mode.ECB}).toString();
+                        var temp = state+","+(counter+=1);
+                        var dict = {};
+                        //console.log(keyword);
+                        dict[keyword] = temp; 
+                        Object.assign(sig, dict);
+                        sessionStorage.setItem("debug", "keyword: "+keyword+" is not in sig");
+                    }
+                    var toHash = CryptoJS.enc.Utf8.parse(tag+","+state);
+                    var h = (CryptoJS.SHA256(toHash).toString());
+                    var e1 = ind+","+op+","+newKey;
+                    var e = "";
+                    for(var i = 0; i < e1.length;i++){
+                        x = String.fromCharCode(e1.charCodeAt(i).toString() ^ h.charCodeAt(i).toString());
+                        e += x;
+                    }
+                    e = convertToBinary(e);
+                    document.getElementById("SingleSig").value = JSON.stringify(sig);
+                    document.getElementById("SingleE").value = e.toString();
+                    document.getElementById("SingleU").value = h;
+                    document.getElementById("SingleInd").value = ind;
+                    sessionStorage.setItem("sig", JSON.stringify(sig));
+                    document.getElementById("SingleKey").value = sessionStorage.getItem("masterkey");
+
+                    sessionStorage.setItem("tmapdata", document.getElementById("SingleSig").value+","+document.getElementById("SingleU").value.length+","+document.getElementById("SingleE").value);
+                    //console.log(sessionStorage.getItem("tmapdata"));
+                }
+                else if(pointer == "multiple"){
+                    keyword = string;
+                    var ind = indGen();
+                    var state;
+                    var counter;
+                    var newKey = keyGen();
+                    if(sig[keyword]){
+                        string = sig[keyword];
+                        var temp = string.split(',');
+                        state = temp[0];
+                        counter = parseInt(temp[1]);
+                        console.log(counter);
+                        var encodedKey = CryptoJS.enc.Utf8.parse(newKey);
+                        var encodedState = CryptoJS.enc.Base64.parse(state);
+                        state = CryptoJS.AES.encrypt(encodedState, encodedKey, {mode: CryptoJS.mode.ECB}).toString();
+                        sig[keyword] = state+","+(counter+=1);
+                    }
+                    else{
+                        state = stateGen();
+                        counter = 0;
+                        var encodedKey = CryptoJS.enc.Utf8.parse(newKey)
+                        var encodedState = CryptoJS.enc.Base64.parse(state)
+                        state = CryptoJS.AES.encrypt(encodedState, encodedKey, {mode: CryptoJS.mode.ECB}).toString();
+                        var temp = state+","+(counter+=1);
+                        var dict = {};
+                        dict[keyword] = temp; 
+                        Object.assign(sig, dict);
+                    }
+                    var toHash = CryptoJS.enc.Utf8.parse(tag+","+state);
+                    var h = (CryptoJS.SHA256(toHash).toString());
+                    var e1 = ind+","+op+","+newKey;
+                    var e = "";
+                    for(var i = 0; i < e1.length;i++){
+                        x = String.fromCharCode(e1.charCodeAt(i).toString() ^ h.charCodeAt(i).toString());
+                        e += x;
+                    }
+                    e = convertToBinary(e);
+                    sessionStorage.setItem("sig", JSON.stringify(sig));
+                    return h+","+e+","+ind;
+                }
+            }
+
+    </script>
+</html>

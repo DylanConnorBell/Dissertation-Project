@@ -1,0 +1,16 @@
+.center{
+    text-align: center;
+}
+.title{
+    font-size: xx-large;
+    text-decoration: underline;
+}
+.header{
+    font-size: x-large;
+    text-decoration: underline;
+}
+.small{
+    font-size: 15px;
+    color:red;
+    text-decoration:wavy;
+}

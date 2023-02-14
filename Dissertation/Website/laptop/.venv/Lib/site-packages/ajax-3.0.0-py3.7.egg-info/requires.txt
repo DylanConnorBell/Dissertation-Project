@@ -1,0 +1,5 @@
+decorator
+django-appconf<1.1,>=1.0.0
+
+[Tagging]
+taggit

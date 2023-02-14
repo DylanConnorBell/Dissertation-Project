@@ -1,0 +1,24 @@
+.center{
+    text-align: center;
+}
+.title{
+    font-size: xx-large;
+    text-decoration: underline;
+}
+.header{
+    font-size: x-large;
+    text-decoration: underline;
+}
+.small{
+    font-size: 15px;
+    color:red;
+    text-decoration:wavy;
+}
+.form{
+    outline-style: groove;    
+    outline-width: thin;
+    padding: 0;
+    width: 500px;
+    max-width: 500px;
+    margin: 0 auto;
+}

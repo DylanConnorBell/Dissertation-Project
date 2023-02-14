@@ -1,0 +1,197 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet"  type="text/css" href="{% static 'website/css/stylesheet.css' %}">
+    </head>
+    <script src="{% static 'website/js/textconversion.js' %}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="{% static 'website/js/dismissalert.js' %}"></script>
+    <script src="{% static 'website/js/randomgen.js' %}"></script>
+    <script>
+        var u;
+        var e;
+        var state;
+        var counter;
+        var tag;
+        var sig = JSON.parse(sessionStorage.getItem("sig"));
+        //console.log(typeof(sig))
+        console.log(sig)
+        var masterkey = CryptoJS.enc.Utf8.parse(sessionStorage.getItem("masterkey"));
+    </script>
+    <body class="center">
+        <header class = "title"> Image Deletion </header>
+        <p></p>
+        <div class="navigation">
+            <a href="{% url 'home' %}"> Home Page </a>
+            <br>
+            <a href="{% url 'image-search' %}"> Image Search </a>
+            <br>
+            <a href="{% url 'add-image' %}"> Add Image </a>
+            <br> 
+        </div>
+        <p> Type in a keyword to delete all images associated with that keyword from the database </p>
+        <br>
+
+        <form class="form" hidden id="DeleteImageGET" action="" method="POST">
+            {% csrf_token %}
+            <label> Keyword: </label>
+            <br>
+            <br>
+            <input type="text" required name="GetKeyword" id="GetKeyword">
+            <input type="hidden" required id="GetTag" name="GetTag" value>
+            <input type="hidden" required id="State" name="State" value>
+            <input type="hidden" required id="Counter" name="Counter" value>
+            <input type="hidden" required id="InSig" name="InSig" value>
+            <br>
+            <br>
+            <input type="submit" value="Submit" name="SearchButton" id="SearchButton"/>
+        </form>
+
+        <form class="form" hidden name="DeleteImageForm" id="DeleteImageForm" enctype="multipart/form-data" method="POST" action="">
+            <p class = "header"> Image Deletion Form </p>
+            {% csrf_token %}
+            <label> Press Submit to delete all images with {{ keyword }} as their keyword </label>
+            <input type="hidden" required name="DeletionKeyword" id="DeletionKeyword">
+            <input type="hidden" required id="DeleteSig" name="DeleteSig" value>
+            <input type="hidden" required id="DeleteU" name="DeleteU" value>
+            <input type="hidden" required id="DeleteE" name="DeleteE" value>
+            <input type="hidden" required id="DeleteInd" name="DeleteInd" value>
+            <input type="hidden" required id="DeleteTag" name="DeleteTag" value>
+            <input type="hidden" required id="DisplayImages" name="DisplayImages" value>
+            <br>
+            <br>
+            <input type="submit" value="Submit" name="DeleteSubmit" id="DeleteSubmit"/>
+            <br>
+        </form>
+        <br>
+        {% for msg in messages %}
+            <div class="alert" id="alert">
+                <div class = "small">
+                {{ msg }}
+                <button type="button" class="btn-close" onclick=dismiss()> x </button>
+                </div>
+            </div>
+        {% endfor %}
+    </body>
+
+    <script type="text/javascript">
+        var indicator = "{{ indicator }}"
+        var word = "{{ keyword|safe }}";
+        var resultsString = "{{ results|safe }}";
+        var results;
+        if(resultsString != ""){
+            temp = resultsString.replaceAll("'", '"');
+            results = JSON.parse(temp);
+        }
+        var temp = "{{ count| safe }}";
+        var resultsCount;
+        if(temp != ""){
+            resultsCount = parseInt("{{ count| safe }}")
+        }
+        else{
+            resultsCount = 0;
+        }
+        var form;
+            if(indicator == "POST"){
+                document.getElementById("DeleteImageForm").hidden = false;
+                document.getElementById("DeleteImageGET").hidden = true;
+                form = document.getElementById('DeleteSubmit');
+                form.addEventListener('click',function(event){ //event.preventDefault();
+                    Deletion(word);}, true)
+            }
+            else{
+                document.getElementById("DeleteImageGET").hidden = false;
+                document.getElementById("DeleteImageForm").hidden = true;
+                form = document.getElementById('SearchButton');
+                form.addEventListener('click',function(event){ Get(document.getElementById("GetKeyword").value);}, true)
+            }
+
+            function Get(string){
+                var encoded = CryptoJS.enc.Utf8.parse(string)
+                var hash = CryptoJS.SHA256(encoded).toString(CryptoJS.enc.Hex);
+                //console.log(hash);
+                var tag = CryptoJS.AES.encrypt(hash, masterkey, {mode: CryptoJS.mode.ECB});
+                //console.log(tag.toString());
+                document.getElementById("GetTag").value = tag;
+                keyword = string
+                if(sig[keyword]){
+                    document.getElementById("InSig").value = "True";
+                    //console.log(sig[keyword]);
+                    rawdata = sig[keyword];
+                    var data = rawdata.split(',');
+                    var state = data[0];
+                    var counter = data[1];
+                    document.getElementById("State").value = state;
+                    document.getElementById("Counter").value = counter;
+                }
+                else{
+                    document.getElementById("InSig").value = "False";
+                    }
+                }
+
+            function Deletion(string){
+                var us = {};
+                var es = {};
+                keyword = string;
+                for(var i = 0; i < resultsCount; i++){
+                    updates = delIndexUpdate(keyword, results[i]);
+                    //console.log(updates);
+                    items = updates.split(",");
+                    //console.log(items);
+                    var tempus = {};
+                    tempus[i.toString()] = items[0];
+                    Object.assign(us, tempus);
+                    var tempes = {};
+                    tempes[i.toString()] = items[1];
+                    Object.assign(es, tempes);
+                }
+                document.getElementById("DeleteTag").value = tag;
+                document.getElementById("DeleteSig").value = JSON.stringify(sig);
+                document.getElementById("DeleteU").value = JSON.stringify(us);
+                document.getElementById("DeleteE").value = JSON.stringify(es);
+                document.getElementById("DeletionKeyword").value = keyword;
+                document.getElementById("DisplayImages").value = "{{ results|safe }}";
+                sessionStorage.setItem("sig", JSON.stringify(sig));
+            }
+
+            function delIndexUpdate(string, ind){
+                rawKeyword = string;
+                var encoded = CryptoJS.enc.Utf8.parse(string)
+                var hash = CryptoJS.SHA256(encoded).toString(CryptoJS.enc.Hex);
+                //console.log(hash);
+                var tag = CryptoJS.AES.encrypt(hash, masterkey, {mode: CryptoJS.mode.ECB});
+                //console.log(tag.toString());
+                var op = "del";
+                var state;
+                var counter;
+                var newKey = keyGen();
+
+                data = sig[rawKeyword];
+                var temp = data.split(',');
+                state = temp[0];
+                counter = parseInt(temp[1]);
+                var encodedKey = CryptoJS.enc.Utf8.parse(newKey);
+                var encodedState = CryptoJS.enc.Base64.parse(state)
+                state = CryptoJS.AES.encrypt(encodedState, encodedKey, {mode: CryptoJS.mode.ECB}).toString();
+                sig[rawKeyword] = state+","+(counter+=1);
+                
+                //console.log(state);
+                var toHash = CryptoJS.enc.Utf8.parse(tag+","+state);
+                var h = (CryptoJS.SHA256(toHash).toString());
+                var e1 = ind+","+op+","+newKey;
+                //console.log(h);
+                //console.log(e1.length);
+                //console.log(h.length);
+                var e = "";
+                for(var i = 0; i < e1.length;i++){
+                    x = String.fromCharCode(e1.charCodeAt(i).toString() ^ h.charCodeAt(i).toString());
+                    e += x;
+                }
+                e = convertToBinary(e);
+                //console.log(e.toString());
+                sessionStorage.setItem("sig", JSON.stringify(sig));
+                return h+","+e;
+            }
+    </script>
+</html>

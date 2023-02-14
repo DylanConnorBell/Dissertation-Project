@@ -1,0 +1,79 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet"  type="text/css" href="{% static 'website/css/stylesheet.css' %}">
+    </head>
+    <script src="{% static 'website/js/textconversion.js' %}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        var sig = JSON.parse(sessionStorage.getItem("sig"));
+        console.log(sig)
+        var masterkey = CryptoJS.enc.Utf8.parse(sessionStorage.getItem("masterkey"));
+    </script>
+    <body class="center">
+        <header class="title"> Image Search </header>
+        <p></p>
+        <div class="navigation">
+            <a href="{% url 'add-image' %}"> Add Image </a>
+            <br>
+            <a href="{% url 'home' %}"> Home Page </a>
+            <br>
+            <a href="{% url 'delete-image' %}"> Delete Image </a>
+            <br> 
+        </div>
+        <br>
+        <form class = "form" style="width: 300px" method="POST">
+            {% csrf_token %}
+            <label> Keyword: </label>
+            <br>
+            <input type="text" id="Keyword" name="Search" placeholder="Keyword search term here">
+            <input type="hidden" required id="Tag" name="Tag" value>
+            <input type="hidden" required id="State" name="State" value>
+            <input type="hidden" required id="Counter" name="Counter" value>
+            <input type="hidden" required id="InSig" name="InSig" value>
+            <br>
+            <input type="submit" name="SearchButton" id="SearchButton">
+            <br>
+        </form>
+        {% if search %}
+        {% if images %}
+        <p> Search took: {{time}}s, Average time per image: {{average}}ms</p>
+            <p class="header"> {{count}} results for: {{keyword}} </p>
+            {% for image in images %}
+                    <img src="media/{{ image.imagefile }}" width ="120"/>
+            {% endfor %}
+        {% else %}
+        <P class="small"> Sorry there were no matches for {{keyword}}, please try again.</P>
+        {% endif %}
+        {% endif %}
+        <br>
+    </body>
+    <script>
+        var form = document.getElementById('SearchButton');
+        form.addEventListener('click',function(event){ Search(document.getElementById('Keyword').value); }, true)
+        
+        function Search(string){
+            keyword = string;
+            var encoded = CryptoJS.enc.Utf8.parse(string);
+            var hash = CryptoJS.SHA256(encoded).toString(CryptoJS.enc.Hex);
+            var tag = CryptoJS.AES.encrypt(hash, masterkey, {mode: CryptoJS.mode.ECB});
+            if(sig[keyword]){
+                document.getElementById("InSig").value = "True";
+                console.log(sig[keyword]);
+                rawdata = sig[keyword];
+                var data = rawdata.split(',');
+                var state = data[0];
+                var counter = data[1];
+                document.getElementById("Tag").value = tag;
+                document.getElementById("State").value = state;
+                document.getElementById("Counter").value = counter;
+                sessionStorage.setItem("SearchDebug", 
+                document.getElementById("InSig").value+","+document.getElementById("Tag").value+","+document.getElementById("State").value+","+ document.getElementById("Counter").value);
+            }
+            else{
+                document.getElementById("InSig").value = "False";
+            }
+        }
+    </script>
+</html>
